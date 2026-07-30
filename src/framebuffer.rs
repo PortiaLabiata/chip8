@@ -36,10 +36,10 @@ impl FrameBuffer {
     }
 
     pub fn reset(&mut self, x: u8, y: u8) {
-        if (x as usize > COLS || y as usize > LINES) {
+        if x as usize > COLS || y as usize > LINES {
             return;
         }
 
-        self.buffer[(x * y) as usize] = 0x00000000;
+        self.buffer[x as usize * y as usize] = 0x00000000;
     }
 }

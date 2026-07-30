@@ -96,6 +96,7 @@ impl Ram {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::assert_matches;
     use std::io::Write;
 
     // ============================================================
@@ -348,5 +349,21 @@ mod tests {
     fn program_new_file_not_found() {
         let result = Program::new("nonexistent_file.ch8");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn correct_endianness() {
+        let mut ram = Ram::new();
+        assert_matches!(ram.write(0x0000, 0x01), Ok(_));
+        assert_matches!(ram.write(0x0001, 0x02), Ok(_));
+        let v = match ram.read16(0x0000) {
+            Some(v) => v,
+            None => {
+                assert!(false);
+                0
+            }
+        };
+
+        assert_eq!(v, 0x0102);
     }
 }
