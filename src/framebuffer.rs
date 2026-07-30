@@ -28,7 +28,7 @@ impl FrameBuffer {
     }
 
     pub fn set(&mut self, x: u8, y: u8) {
-        if (x as usize > COLS || y as usize > LINES) {
+        if x as usize > COLS || y as usize > LINES {
             return;
         }
 
