@@ -22,6 +22,10 @@ pub enum Opcode {
     Sexy(u8, u8),
     Ld(u8, u8),
     Add(u8, u8),
+    Ldxy(u8, u8),
+    Or(u8, u8),
+    And(u8, u8),
+    Xor(u8, u8),
 }
 
 impl TryFrom<u16> for Opcode {
@@ -62,6 +66,14 @@ impl TryFrom<u16> for Opcode {
             (0x6, x, k1, k2) => Ok(Opcode::Ld(x, k1 << 4 | k2)),
 
             (0x7, x, k1, k2) => Ok(Opcode::Add(x, k1 << 4 | k2)),
+
+            (0x8, x, y, 0x0) => Ok(Opcode::Ldxy(x, y)),
+
+            (0x8, x, y, 0x1) => Ok(Opcode::Or(x, y)),
+
+            (0x8, x, y, 0x2) => Ok(Opcode::And(x, y)),
+
+            (0x8, x, y, 0x3) => Ok(Opcode::Xor(x, y)),
 
             _ => Err(()),
         };
@@ -156,6 +168,22 @@ impl Cpu {
 
             Opcode::Add(r, b) => {
                 self.v[r as usize] += Wrapping(b);
+            }
+
+            Opcode::Ldxy(x, y) => {
+                self.v[x as usize] = self.v[y as usize];
+            }
+
+            Opcode::Or(x, y) => {
+                self.v[x as usize] = self.v[x as usize] | self.v[y as usize];
+            }
+
+            Opcode::And(x, y) => {
+                self.v[x as usize] = self.v[x as usize] & self.v[y as usize];
+            }
+
+            Opcode::Xor(x, y) => {
+                self.v[x as usize] = self.v[x as usize] ^ self.v[y as usize];
             }
         }
     }
@@ -268,13 +296,33 @@ mod tests {
         }
 
         #[test]
-        fn ld_not_implemented_in_decoder() {
+        fn ld() {
             assert!(Opcode::try_from(0x6012).is_ok());
         }
 
         #[test]
-        fn add_not_implemented_in_decoder() {
+        fn add() {
             assert!(Opcode::try_from(0x7012).is_ok());
+        }
+
+        #[test]
+        fn ldxy() {
+            assert!(matches!(Opcode::try_from(0x8010), Ok(Opcode::Ldxy(0, 1))));
+        }
+
+        #[test]
+        fn or() {
+            assert!(matches!(Opcode::try_from(0x8011), Ok(Opcode::Or(0, 1))));
+        }
+
+        #[test]
+        fn and() {
+            assert!(matches!(Opcode::try_from(0x8012), Ok(Opcode::And(0, 1))));
+        }
+
+        #[test]
+        fn xor() {
+            assert!(matches!(Opcode::try_from(0x8013), Ok(Opcode::Xor(0, 1))));
         }
 
         #[test]
@@ -488,6 +536,45 @@ mod tests {
             cpu.v[7] = Wrapping(0xFF);
             cpu.execute_opcode(Opcode::Add(7, 0x01), &mut ram, &mut fb);
             assert_eq!(cpu.v[7].0, 0x00);
+        }
+
+        #[test]
+        fn ldxy_loads() {
+            let (mut cpu, mut ram, mut fb) = setup();
+            cpu.v[0] = Wrapping(0xDE);
+            cpu.execute_opcode(Opcode::Ldxy(1, 0), &mut ram, &mut fb);
+            assert_eq!(cpu.v[1].0, 0xDE);
+            assert_eq!(cpu.v[0].0, 0xDE);
+        }
+
+        #[test]
+        fn or_works() {
+            let (mut cpu, mut ram, mut fb) = setup();
+            cpu.v[0] = Wrapping(0x01);
+            cpu.v[1] = Wrapping(0x10);
+            cpu.execute_opcode(Opcode::Or(0, 1), &mut ram, &mut fb);
+            assert_eq!(cpu.v[0].0, 0x11);
+            assert_eq!(cpu.v[1].0, 0x10);
+        }
+
+        #[test]
+        fn and_works() {
+            let (mut cpu, mut ram, mut fb) = setup();
+            cpu.v[0] = Wrapping(0x01);
+            cpu.v[1] = Wrapping(0x11);
+            cpu.execute_opcode(Opcode::And(0, 1), &mut ram, &mut fb);
+            assert_eq!(cpu.v[0].0, 0x01);
+            assert_eq!(cpu.v[1].0, 0x11);
+        }
+
+        #[test]
+        fn xor_works() {
+            let (mut cpu, mut ram, mut fb) = setup();
+            cpu.v[0] = Wrapping(0x01);
+            cpu.v[1] = Wrapping(0x11);
+            cpu.execute_opcode(Opcode::Xor(0, 1), &mut ram, &mut fb);
+            assert_eq!(cpu.v[0].0, 0x10);
+            assert_eq!(cpu.v[1].0, 0x11);
         }
     }
 
