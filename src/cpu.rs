@@ -34,6 +34,9 @@ pub enum Opcode {
     Xor(u8, u8),
     Addxy(u8, u8),
     Subxy(u8, u8),
+    Shr(u8, u8),
+    Subn(u8, u8),
+    Shl(u8, u8),
 }
 
 impl TryFrom<u16> for Opcode {
@@ -86,6 +89,12 @@ impl TryFrom<u16> for Opcode {
             (0x8, x, y, 0x4) => Ok(Opcode::Addxy(x, y)),
 
             (0x8, x, y, 0x5) => Ok(Opcode::Subxy(x, y)),
+
+            (0x8, x, y, 0x6) => Ok(Opcode::Shr(x, y)),
+
+            (0x8, x, y, 0x7) => Ok(Opcode::Subn(x, y)),
+
+            (0x8, x, y, 0xE) => Ok(Opcode::Shl(x, y)),
 
             _ => Err(()),
         };
@@ -216,6 +225,38 @@ impl Cpu {
                     self.v[15] = Wrapping(0);
                 }
                 self.v[x as usize] = self.v[x as usize] - self.v[y as usize];
+            }
+
+            Opcode::Shr(x, _) => {
+                let v = self.v[x as usize];
+                let lsb = v.0 & 0x01;
+                if lsb == 0x01 {
+                    self.v[15] = Wrapping(1);
+                } else {
+                    self.v[15] = Wrapping(0);
+                }
+                self.v[x as usize] = v >> 1;
+            }
+
+            Opcode::Subn(x, y) => {
+                let (vx, vy) = (&self.v[x as usize], &self.v[y as usize]);
+                if (vy.0 as i16) - (vx.0 as i16) < 0 {
+                    self.v[15] = Wrapping(1);
+                } else {
+                    self.v[15] = Wrapping(0);
+                }
+                self.v[x as usize] = self.v[y as usize] - self.v[x as usize];
+            }
+
+            Opcode::Shl(x, _) => {
+                let v = self.v[x as usize];
+                let msb = (v.0 & 0b10000000) >> 7;
+                if msb == 0x01 {
+                    self.v[15] = Wrapping(1);
+                } else {
+                    self.v[15] = Wrapping(0);
+                }
+                self.v[x as usize] = v << 1;
             }
         }
     }
@@ -366,6 +407,21 @@ mod tests {
         #[test]
         fn subxy() {
             assert!(matches!(Opcode::try_from(0x8015), Ok(Opcode::Subxy(0, 1))));
+        }
+
+        #[test]
+        fn shr() {
+            assert!(matches!(Opcode::try_from(0x8016), Ok(Opcode::Shr(0, 1))));
+        }
+
+        #[test]
+        fn subn() {
+            assert!(matches!(Opcode::try_from(0x8017), Ok(Opcode::Subn(0, 1))));
+        }
+
+        #[test]
+        fn shl() {
+            assert!(matches!(Opcode::try_from(0x801e), Ok(Opcode::Shl(0, 1))));
         }
 
         #[test]
@@ -665,6 +721,66 @@ mod tests {
             cpu.execute_opcode(Opcode::Subxy(0, 1), &mut ram, &mut fb);
             assert_eq!(cpu.v[0].0, 0xfd);
             assert_eq!(cpu.v[1].0, 0x03);
+            assert_eq!(cpu.v[15].0, 1);
+        }
+
+        #[test]
+        fn shr_works() {
+            let (mut cpu, mut ram, mut fb) = setup();
+            cpu.v[0] = Wrapping(0b10);
+            cpu.v[1] = Wrapping(0x02);
+            cpu.v[15] = Wrapping(0xDE);
+            cpu.execute_opcode(Opcode::Shr(0, 1), &mut ram, &mut fb);
+            assert_eq!(cpu.v[0].0, 0x01);
+            assert_eq!(cpu.v[1].0, 0x02);
+            assert_eq!(cpu.v[15].0, 0);
+        }
+
+        #[test]
+        fn shr_vf() {
+            let (mut cpu, mut ram, mut fb) = setup();
+            cpu.v[0] = Wrapping(0b11);
+            cpu.v[1] = Wrapping(0x03);
+            cpu.v[15] = Wrapping(0xDE);
+            cpu.execute_opcode(Opcode::Shr(0, 1), &mut ram, &mut fb);
+            assert_eq!(cpu.v[0].0, 0x01);
+            assert_eq!(cpu.v[1].0, 0x03);
+            assert_eq!(cpu.v[15].0, 1);
+        }
+
+        #[test]
+        fn subn_works() {
+            let (mut cpu, mut ram, mut fb) = setup();
+            cpu.v[0] = Wrapping(0x03);
+            cpu.v[1] = Wrapping(0x00);
+            cpu.v[15] = Wrapping(0xDE);
+            cpu.execute_opcode(Opcode::Subn(0, 1), &mut ram, &mut fb);
+            assert_eq!(cpu.v[0].0, 0xfd);
+            assert_eq!(cpu.v[1].0, 0x00);
+            assert_eq!(cpu.v[15].0, 1);
+        }
+
+        #[test]
+        fn shl_works() {
+            let (mut cpu, mut ram, mut fb) = setup();
+            cpu.v[0] = Wrapping(0b01);
+            cpu.v[1] = Wrapping(0x02);
+            cpu.v[15] = Wrapping(0xDE);
+            cpu.execute_opcode(Opcode::Shl(0, 1), &mut ram, &mut fb);
+            assert_eq!(cpu.v[0].0, 0b10);
+            assert_eq!(cpu.v[1].0, 0x02);
+            assert_eq!(cpu.v[15].0, 0);
+        }
+
+        #[test]
+        fn shl_vf() {
+            let (mut cpu, mut ram, mut fb) = setup();
+            cpu.v[0] = Wrapping(0b11000000);
+            cpu.v[1] = Wrapping(0x02);
+            cpu.v[15] = Wrapping(0xDE);
+            cpu.execute_opcode(Opcode::Shl(0, 1), &mut ram, &mut fb);
+            assert_eq!(cpu.v[0].0, 0b10000000);
+            assert_eq!(cpu.v[1].0, 0x02);
             assert_eq!(cpu.v[15].0, 1);
         }
     }
