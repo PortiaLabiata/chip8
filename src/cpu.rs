@@ -3,6 +3,7 @@ use std::num::Wrapping;
 use super::framebuffer;
 use super::ram;
 
+#[derive(Debug)]
 pub struct Cpu {
     v: [Wrapping<u8>; 16],
     i: u16,
@@ -12,20 +13,27 @@ pub struct Cpu {
     pc: Wrapping<u16>,
 }
 
+#[derive(Debug)]
 pub enum Opcode {
     Cls,
+
     Ret,
     Jp(u16),
     Call(u16),
+
     Se(u8, u8),
     Sne(u8, u8),
     Sexy(u8, u8),
+
     Ld(u8, u8),
-    Add(u8, u8),
     Ldxy(u8, u8),
+
+    Add(u8, u8),
     Or(u8, u8),
     And(u8, u8),
     Xor(u8, u8),
+    Addxy(u8, u8),
+    Subxy(u8, u8),
 }
 
 impl TryFrom<u16> for Opcode {
@@ -74,6 +82,10 @@ impl TryFrom<u16> for Opcode {
             (0x8, x, y, 0x2) => Ok(Opcode::And(x, y)),
 
             (0x8, x, y, 0x3) => Ok(Opcode::Xor(x, y)),
+
+            (0x8, x, y, 0x4) => Ok(Opcode::Addxy(x, y)),
+
+            (0x8, x, y, 0x5) => Ok(Opcode::Subxy(x, y)),
 
             _ => Err(()),
         };
@@ -185,6 +197,26 @@ impl Cpu {
             Opcode::Xor(x, y) => {
                 self.v[x as usize] = self.v[x as usize] ^ self.v[y as usize];
             }
+
+            Opcode::Addxy(x, y) => {
+                let (vx, vy) = (&self.v[x as usize], &self.v[y as usize]);
+                if (vx.0 as u16) + (vy.0 as u16) > 255 {
+                    self.v[15] = Wrapping(1);
+                } else {
+                    self.v[15] = Wrapping(0);
+                }
+                self.v[x as usize] = self.v[x as usize] + self.v[y as usize];
+            }
+
+            Opcode::Subxy(x, y) => {
+                let (vx, vy) = (&self.v[x as usize], &self.v[y as usize]);
+                if (vx.0 as i16) - (vy.0 as i16) < 0 {
+                    self.v[15] = Wrapping(1);
+                } else {
+                    self.v[15] = Wrapping(0);
+                }
+                self.v[x as usize] = self.v[x as usize] - self.v[y as usize];
+            }
         }
     }
 
@@ -200,6 +232,7 @@ impl Cpu {
             Err(_) => return,
         };
 
+        println!("pc: {} op: {:?}", self.pc, opcode);
         self.pc += 2;
         self.execute_opcode(opcode, memory, fb);
     }
@@ -323,6 +356,16 @@ mod tests {
         #[test]
         fn xor() {
             assert!(matches!(Opcode::try_from(0x8013), Ok(Opcode::Xor(0, 1))));
+        }
+
+        #[test]
+        fn addxy() {
+            assert!(matches!(Opcode::try_from(0x8014), Ok(Opcode::Addxy(0, 1))));
+        }
+
+        #[test]
+        fn subxy() {
+            assert!(matches!(Opcode::try_from(0x8015), Ok(Opcode::Subxy(0, 1))));
         }
 
         #[test]
@@ -575,6 +618,54 @@ mod tests {
             cpu.execute_opcode(Opcode::Xor(0, 1), &mut ram, &mut fb);
             assert_eq!(cpu.v[0].0, 0x10);
             assert_eq!(cpu.v[1].0, 0x11);
+        }
+
+        #[test]
+        fn addxy_works() {
+            let (mut cpu, mut ram, mut fb) = setup();
+            cpu.v[0] = Wrapping(0x02);
+            cpu.v[1] = Wrapping(0x03);
+            cpu.v[15] = Wrapping(0xDE);
+            cpu.execute_opcode(Opcode::Addxy(0, 1), &mut ram, &mut fb);
+            assert_eq!(cpu.v[0].0, 0x05);
+            assert_eq!(cpu.v[1].0, 0x03);
+            assert_eq!(cpu.v[15].0, 0);
+        }
+
+        #[test]
+        fn addxy_vf() {
+            let (mut cpu, mut ram, mut fb) = setup();
+            cpu.v[0] = Wrapping(0xff);
+            cpu.v[1] = Wrapping(0x03);
+            cpu.v[15] = Wrapping(0xDE);
+            cpu.execute_opcode(Opcode::Addxy(0, 1), &mut ram, &mut fb);
+            assert_eq!(cpu.v[0].0, 0x02);
+            assert_eq!(cpu.v[1].0, 0x03);
+            assert_eq!(cpu.v[15].0, 1);
+        }
+
+        #[test]
+        fn subxy_works() {
+            let (mut cpu, mut ram, mut fb) = setup();
+            cpu.v[0] = Wrapping(0x03);
+            cpu.v[1] = Wrapping(0x02);
+            cpu.v[15] = Wrapping(0xDE);
+            cpu.execute_opcode(Opcode::Subxy(0, 1), &mut ram, &mut fb);
+            assert_eq!(cpu.v[0].0, 0x01);
+            assert_eq!(cpu.v[1].0, 0x02);
+            assert_eq!(cpu.v[15].0, 0);
+        }
+
+        #[test]
+        fn subxy_vf() {
+            let (mut cpu, mut ram, mut fb) = setup();
+            cpu.v[0] = Wrapping(0x00);
+            cpu.v[1] = Wrapping(0x03);
+            cpu.v[15] = Wrapping(0xDE);
+            cpu.execute_opcode(Opcode::Subxy(0, 1), &mut ram, &mut fb);
+            assert_eq!(cpu.v[0].0, 0xfd);
+            assert_eq!(cpu.v[1].0, 0x03);
+            assert_eq!(cpu.v[15].0, 1);
         }
     }
 
