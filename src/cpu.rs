@@ -6,7 +6,7 @@ use super::ram;
 #[derive(Debug)]
 pub struct Cpu {
     v: [Wrapping<u8>; 16],
-    i: u16,
+    i: Wrapping<u16>,
     sp: Wrapping<u8>,
     dt: u8,
     st: u8,
@@ -163,7 +163,7 @@ impl Cpu {
     pub fn new() -> Self {
         Cpu {
             v: [Wrapping(0); 16],
-            i: 0,
+            i: Wrapping(0),
             sp: Wrapping(0),
             dt: 0,
             st: 0,
@@ -328,7 +328,7 @@ impl Cpu {
             }
 
             Opcode::Ldi(a) => {
-                self.i = a;
+                self.i = Wrapping(a);
             }
 
             Opcode::Jpv0(a) => {
@@ -342,7 +342,7 @@ impl Cpu {
 
             Opcode::Drw(x, y, n) => {
                 let mut sprite = Vec::with_capacity(n as usize);
-                for a in self.i..(self.i + n as u16) {
+                for a in self.i.0..(self.i.0 + n as u16) {
                     sprite.push(memory.read(a).unwrap());
                 }
                 if fb.blit(&sprite, self.v[x as usize].0, self.v[y as usize].0) {
@@ -371,33 +371,35 @@ impl Cpu {
             }
 
             Opcode::Addix(x) => {
-                self.i += self.v[x as usize].0 as u16;
+                self.i += Wrapping(self.v[x as usize].0 as u16);
             }
 
             Opcode::Ldfx(x) => {
-                self.i = (self.v[x as usize].0 * 5) as u16;
+                self.i = Wrapping((self.v[x as usize].0 * 5) as u16);
             }
 
             Opcode::Ldbx(x) => {
                 let v = self.v[x as usize].0;
                 let (v1, v2, v3) = (v / 100, (v / 10) % 10, v % 10);
-                memory.write(self.i, v1).unwrap();
-                memory.write(self.i + 1, v2).unwrap();
-                memory.write(self.i + 2, v3).unwrap();
+                memory.write(self.i.0, v1).unwrap();
+                memory.write((self.i + Wrapping(1)).0, v2).unwrap();
+                memory.write((self.i + Wrapping(2)).0, v3).unwrap();
             }
 
             Opcode::Ldix(x) => {
                 for i in 0..(x as usize) {
-                    memory.write(self.i + (i as u16), self.v[i].0).unwrap();
+                    memory.write((self.i + Wrapping(i as u16)).0, self.v[i].0).unwrap();
                 }
+                self.i += (x + 1) as u16;
             }
 
             // TODO: add better error handling
             Opcode::Ldxi(x) => {
                 for i in 0..(x as usize) {
-                    let v = memory.read(self.i + (i as u16)).unwrap();
+                    let v = memory.read((self.i + Wrapping(i as u16)).0).unwrap();
                     self.v[i as usize] = Wrapping(v);
                 }
+                self.i += (x + 1) as u16;
             }
         }
     }
