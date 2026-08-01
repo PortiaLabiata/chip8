@@ -7,7 +7,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut cpu = cpu::Cpu::new();
     let mut memory = ram::Ram::new();
 
-    let program = ram::Program::new("3-corax+.ch8")?;
+    let args: Vec<String> = std::env::args().collect();
+    let filename = match args.get(1) {
+        Some(v) => v,
+        None => {
+            let e = std::io::ErrorKind::NotFound;
+            return Err(Box::new(std::io::Error::new(e, "File not found")));
+        }
+    };
+
+    let program = ram::Program::new(filename)?;
     memory.load_program(program);
 
     while framebuffer.run() {
