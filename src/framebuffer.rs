@@ -1,7 +1,7 @@
 use minifb::{Window, WindowOptions};
 
-pub const LINES: usize = 64;
-pub const COLS: usize = 32;
+pub const LINES: usize = 32;
+pub const COLS: usize = 64;
 
 pub struct FrameBuffer {
     buffer: [u32; LINES * COLS],
