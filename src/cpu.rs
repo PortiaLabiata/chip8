@@ -250,7 +250,13 @@ impl Cpu {
             }
 
             Opcode::Add(r, b) => {
+                let v = self.v[r as usize];
                 self.v[r as usize] += Wrapping(b);
+                if v.0 as u16 + b as u16 > 255 {
+                    self.v[15] = Wrapping(1);
+                } else {
+                    self.v[15] = Wrapping(0);
+                }
             }
 
             Opcode::Ldxy(x, y) => {
@@ -270,55 +276,55 @@ impl Cpu {
             }
 
             Opcode::Addxy(x, y) => {
-                let (vx, vy) = (&self.v[x as usize], &self.v[y as usize]);
+                let (vx, vy) = (self.v[x as usize], self.v[y as usize]);
+                self.v[x as usize] = self.v[x as usize] + self.v[y as usize];
                 if (vx.0 as u16) + (vy.0 as u16) > 255 {
                     self.v[15] = Wrapping(1);
                 } else {
                     self.v[15] = Wrapping(0);
                 }
-                self.v[x as usize] = self.v[x as usize] + self.v[y as usize];
             }
 
             Opcode::Subxy(x, y) => {
-                let (vx, vy) = (&self.v[x as usize], &self.v[y as usize]);
+                let (vx, vy) = (self.v[x as usize], self.v[y as usize]);
+                self.v[x as usize] -= self.v[y as usize];
                 if (vx.0 as i16) - (vy.0 as i16) < 0 {
-                    self.v[15] = Wrapping(1);
-                } else {
                     self.v[15] = Wrapping(0);
+                } else {
+                    self.v[15] = Wrapping(1);
                 }
-                self.v[x as usize] = self.v[x as usize] - self.v[y as usize];
             }
 
             Opcode::Shr(x, _) => {
                 let v = self.v[x as usize];
                 let lsb = v.0 & 0x01;
+                self.v[x as usize] = v >> 1;
                 if lsb == 0x01 {
                     self.v[15] = Wrapping(1);
                 } else {
                     self.v[15] = Wrapping(0);
                 }
-                self.v[x as usize] = v >> 1;
             }
 
             Opcode::Subn(x, y) => {
-                let (vx, vy) = (&self.v[x as usize], &self.v[y as usize]);
-                if (vy.0 as i16) - (vx.0 as i16) < 0 {
-                    self.v[15] = Wrapping(1);
-                } else {
-                    self.v[15] = Wrapping(0);
-                }
+                let (vx, vy) = (self.v[x as usize], self.v[y as usize]);
                 self.v[x as usize] = self.v[y as usize] - self.v[x as usize];
+                if (vy.0 as i16) - (vx.0 as i16) < 0 {
+                    self.v[15] = Wrapping(0);
+                } else {
+                    self.v[15] = Wrapping(1);
+                }
             }
 
             Opcode::Shl(x, _) => {
                 let v = self.v[x as usize];
                 let msb = (v.0 & 0b10000000) >> 7;
+                self.v[x as usize] = v << 1;
                 if msb == 0x01 {
                     self.v[15] = Wrapping(1);
                 } else {
                     self.v[15] = Wrapping(0);
                 }
-                self.v[x as usize] = v << 1;
             }
 
             Opcode::Snexy(x, y) => {
