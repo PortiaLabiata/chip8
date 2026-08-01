@@ -358,9 +358,17 @@ impl Cpu {
                 }
             }
 
-            Opcode::Skp(_x) => {}
+            Opcode::Skp(x) => {
+                if fb.key_pressed(self.v[x as usize].0) {
+                    self.pc += 2;
+                }
+            }
 
-            Opcode::Sknp(_x) => {}
+            Opcode::Sknp(x) => {
+                if !fb.key_pressed(self.v[x as usize].0) {
+                    self.pc += 2;
+                }
+            }
 
             Opcode::Ldxd(x) => {
                 self.v[x as usize] = Wrapping(self.dt);
