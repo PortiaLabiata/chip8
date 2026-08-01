@@ -27,19 +27,28 @@ impl FrameBuffer {
         };
     }
 
-    pub fn set(&mut self, x: u8, y: u8) {
-        if x as usize > COLS || y as usize > LINES {
-            return;
-        }
-
-        self.buffer[(x * y) as usize] = 0xFFFFFFFF;
-    }
-
     pub fn reset(&mut self, x: u8, y: u8) {
         if x as usize > COLS || y as usize > LINES {
             return;
         }
 
         self.buffer[x as usize * y as usize] = 0x00000000;
+    }
+
+    pub fn blit(&mut self, sprite: &[u8], x: u8, y: u8) {
+        for &byte in sprite {
+            for i in 0..8 {
+                let byte_color;
+                if (byte >> i) & 0x1 == 0x1 {
+                    byte_color = u32::MAX;
+                } else {
+                    byte_color = u32::MIN;
+                }
+
+                *self.buffer.get_mut(x as usize * y as usize)
+                    .expect("Invalid framebuffer adress")
+                    ^= byte_color;
+            }
+        }
     }
 }
