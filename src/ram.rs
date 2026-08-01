@@ -52,7 +52,7 @@ impl Ram {
 
         Ram {
             stack: [0; STACK_SIZE / 2],
-            memory: [0; 4096],
+            memory,
         }
     }
 
@@ -76,7 +76,7 @@ impl Ram {
 
     // TODO: add handling of RAM overflow
     pub fn load_program(&mut self, prog: Program) {
-        for (ram_byte, rom_byte) in self.memory.iter_mut().zip(prog.data.iter()) {
+        for (ram_byte, rom_byte) in self.memory[0x200..].iter_mut().zip(prog.data.iter()) {
             *ram_byte = *rom_byte;
         }
     }

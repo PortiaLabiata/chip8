@@ -167,7 +167,7 @@ impl Cpu {
             sp: Wrapping(0),
             dt: 0,
             st: 0,
-            pc: Wrapping(0),
+            pc: Wrapping(0x200),
         }
     }
 
