@@ -387,7 +387,7 @@ impl Cpu {
             }
 
             Opcode::Ldix(x) => {
-                for i in 0..(x as usize) {
+                for i in 0..(x as usize + 1) {
                     memory.write((self.i + Wrapping(i as u16)).0, self.v[i].0).unwrap();
                 }
                 self.i += (x + 1) as u16;
@@ -395,7 +395,7 @@ impl Cpu {
 
             // TODO: add better error handling
             Opcode::Ldxi(x) => {
-                for i in 0..(x as usize) {
+                for i in 0..(x as usize + 1) {
                     let v = memory.read((self.i + Wrapping(i as u16)).0).unwrap();
                     self.v[i as usize] = Wrapping(v);
                 }
