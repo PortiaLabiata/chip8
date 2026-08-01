@@ -171,6 +171,10 @@ impl Cpu {
         }
     }
 
+    pub fn pc(&self) -> u16 {
+        self.pc.0
+    }
+
     fn cls(&self, fb: &mut framebuffer::FrameBuffer) {
         for line in 0..framebuffer::LINES {
             for col in 0..framebuffer::COLS {
@@ -341,24 +345,22 @@ impl Cpu {
                 for a in self.i..(self.i + n as u16) {
                     sprite.push(memory.read(a).unwrap());
                 }
-                fb.blit(&sprite, self.v[x as usize].0, self.v[y as usize].0);
+                if fb.blit(&sprite, self.v[x as usize].0, self.v[y as usize].0) {
+                    self.v[15] = Wrapping(1);
+                } else {
+                    self.v[15] = Wrapping(0);
+                }
             }
 
-            Opcode::Skp(_x) => {
-                
-            }
+            Opcode::Skp(_x) => {}
 
-            Opcode::Sknp(_x) => {
-
-            }
+            Opcode::Sknp(_x) => {}
 
             Opcode::Ldxd(x) => {
                 self.v[x as usize] = Wrapping(self.dt);
             }
 
-            Opcode::Ldxk(_x) => {
-
-            }
+            Opcode::Ldxk(_x) => {}
 
             Opcode::Lddx(x) => {
                 self.dt = self.v[x as usize].0;
@@ -373,27 +375,27 @@ impl Cpu {
             }
 
             Opcode::Ldfx(x) => {
-                self.i = (self.v[x as usize].0 * 5) as u16; 
+                self.i = (self.v[x as usize].0 * 5) as u16;
             }
 
             Opcode::Ldbx(x) => {
-                let v = self.v[x as usize].0;  
+                let v = self.v[x as usize].0;
                 let (v1, v2, v3) = (v / 100, (v / 10) % 10, v % 10);
                 memory.write(self.i, v1).unwrap();
-                memory.write(self.i+1, v2).unwrap();
-                memory.write(self.i+2, v3).unwrap();
+                memory.write(self.i + 1, v2).unwrap();
+                memory.write(self.i + 2, v3).unwrap();
             }
 
             Opcode::Ldix(x) => {
                 for i in 0..(x as usize) {
-                    memory.write(self.i+(i as u16), self.v[i].0).unwrap();
+                    memory.write(self.i + (i as u16), self.v[i].0).unwrap();
                 }
             }
 
             // TODO: add better error handling
             Opcode::Ldxi(x) => {
                 for i in 0..(x as usize) {
-                    let v = memory.read(self.i+(i as u16)).unwrap();
+                    let v = memory.read(self.i + (i as u16)).unwrap();
                     self.v[i as usize] = Wrapping(v);
                 }
             }
@@ -580,12 +582,18 @@ mod tests {
 
         #[test]
         fn rand() {
-            assert!(matches!(Opcode::try_from(0xc012), Ok(Opcode::Rnd(0x0, 0x12))));
+            assert!(matches!(
+                Opcode::try_from(0xc012),
+                Ok(Opcode::Rnd(0x0, 0x12))
+            ));
         }
 
         #[test]
         fn drw() {
-            assert!(matches!(Opcode::try_from(0xd013), Ok(Opcode::Drw(0x0, 0x1, 0x3))));
+            assert!(matches!(
+                Opcode::try_from(0xd013),
+                Ok(Opcode::Drw(0x0, 0x1, 0x3))
+            ));
         }
 
         #[test]

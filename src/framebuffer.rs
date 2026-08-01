@@ -35,20 +35,29 @@ impl FrameBuffer {
         self.buffer[x as usize * y as usize] = 0x00000000;
     }
 
-    pub fn blit(&mut self, sprite: &[u8], x: u8, y: u8) {
-        for &byte in sprite {
-            for i in 0..8 {
-                let byte_color;
-                if (byte >> i) & 0x1 == 0x1 {
-                    byte_color = u32::MAX;
-                } else {
-                    byte_color = u32::MIN;
-                }
+    pub fn blit(&mut self, sprite: &[u8], x: u8, y: u8) -> bool {
+        let mut collision = false;
 
-                *self.buffer.get_mut(x as usize * y as usize)
-                    .expect("Invalid framebuffer adress")
-                    ^= byte_color;
+        for (row, &byte) in sprite.iter().enumerate() {
+            for bit in 0..8 {
+                // CHIP-8: старший бит (7) — левый пиксель строки
+                if (byte >> (7 - bit)) & 0x1 == 0x1 {
+                    let px = (x as usize + bit) % COLS;
+                    let py = (y as usize + row) % LINES;
+                    let idx = py * COLS + px;
+
+                    let old = self.buffer[idx];
+                    let new = old ^ u32::MAX;
+                    self.buffer[idx] = new;
+
+                    // Коллизия: пиксель был включён (u32::MAX) и стал выключенным (0)
+                    if old == u32::MAX && new == 0 {
+                        collision = true;
+                    }
+                }
             }
         }
+
+        collision
     }
 }
