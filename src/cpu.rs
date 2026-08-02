@@ -8,8 +8,8 @@ pub struct Cpu {
     v: [Wrapping<u8>; 16],
     i: Wrapping<u16>,
     sp: Wrapping<u8>,
-    dt: u8,
-    st: u8,
+    dt: Wrapping<u8>,
+    st: Wrapping<u8>,
     pc: Wrapping<u16>,
 }
 
@@ -165,8 +165,8 @@ impl Cpu {
             v: [Wrapping(0); 16],
             i: Wrapping(0),
             sp: Wrapping(0),
-            dt: 0,
-            st: 0,
+            dt: Wrapping(0),
+            st: Wrapping(0),
             pc: Wrapping(0x200),
         }
     }
@@ -371,17 +371,21 @@ impl Cpu {
             }
 
             Opcode::Ldxd(x) => {
-                self.v[x as usize] = Wrapping(self.dt);
+                self.v[x as usize] = self.dt;
             }
 
-            Opcode::Ldxk(_x) => {}
+            Opcode::Ldxk(x) => {
+                while !fb.key_pressed(x) {
+                    fb.run();
+                }
+            }
 
             Opcode::Lddx(x) => {
-                self.dt = self.v[x as usize].0;
+                self.dt = self.v[x as usize];
             }
 
             Opcode::Ldsx(x) => {
-                self.st = self.v[x as usize].0;
+                self.st = self.v[x as usize];
             }
 
             Opcode::Addix(x) => {
@@ -422,7 +426,7 @@ impl Cpu {
     pub fn tick(&mut self, memory: &mut ram::Ram, fb: &mut framebuffer::FrameBuffer) {
         let instruction = match memory.read16(self.pc.0) {
             Some(v) => v,
-            None => return,
+            None => panic!("Failed to fetch instruction"),
         };
 
         let opcode = match Opcode::try_from(instruction) {
@@ -431,7 +435,16 @@ impl Cpu {
         };
 
         println!("pc: {} op: {:?}", self.pc, opcode);
+        println!("{:?}", self);
         self.pc += 2;
+        if self.dt.0 > 0 {
+            self.dt -= 1;
+        }
+
+        if self.st.0 > 0 {
+            self.st -= 1;
+        }
+
         self.execute_opcode(opcode, memory, fb);
     }
 }
