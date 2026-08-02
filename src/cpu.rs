@@ -253,9 +253,9 @@ impl Cpu {
                 let v = self.v[r as usize];
                 self.v[r as usize] += Wrapping(b);
                 if v.0 as u16 + b as u16 > 255 {
-                    self.v[15] = Wrapping(1);
-                } else {
                     self.v[15] = Wrapping(0);
+                } else {
+                    self.v[15] = Wrapping(1);
                 }
             }
 
@@ -279,9 +279,9 @@ impl Cpu {
                 let (vx, vy) = (self.v[x as usize], self.v[y as usize]);
                 self.v[x as usize] = self.v[x as usize] + self.v[y as usize];
                 if (vx.0 as u16) + (vy.0 as u16) > 255 {
-                    self.v[15] = Wrapping(1);
-                } else {
                     self.v[15] = Wrapping(0);
+                } else {
+                    self.v[15] = Wrapping(1);
                 }
             }
 
@@ -408,7 +408,6 @@ impl Cpu {
                 for i in 0..(x as usize + 1) {
                     memory.write((self.i + Wrapping(i as u16)).0, self.v[i].0).unwrap();
                 }
-                self.i += (x + 1) as u16;
             }
 
             // TODO: add better error handling
@@ -417,7 +416,6 @@ impl Cpu {
                     let v = memory.read((self.i + Wrapping(i as u16)).0).unwrap();
                     self.v[i as usize] = Wrapping(v);
                 }
-                self.i += (x + 1) as u16;
             }
         }
     }

@@ -11,8 +11,7 @@ pub struct FrameBuffer {
 impl FrameBuffer {
     pub fn new(width: usize, height: usize) -> Result<Self, minifb::Error> {
         let buffer = [0; LINES * COLS];
-        let mut window = Window::new("CHIP-8", width, height, WindowOptions::default())?;
-        window.set_target_fps(60);
+        let window = Window::new("CHIP-8", width, height, WindowOptions::default())?;
 
         Ok(FrameBuffer { buffer, window })
     }
